@@ -17,15 +17,29 @@ count_vms() {
 # Count the VMs to be deleted before asking for confirmation
 VM_TO_DELETE_COUNT=$(count_vms)
 
-# Display the count and ask for user confirmation
-echo "Found $VM_TO_DELETE_COUNT VMs with IDs longer than 6 digits to be deleted."
-read -p "Do you want to proceed with the deletion? (yes/no): " confirmation
-
-# Check user confirmation
-if [[ $confirmation != "yes" ]]; then
-    echo "Deletion process cancelled by user."
-    exit 0
+if [ "$VM_TO_DELETE_COUNT" -eq 0 ]; then
+    echo "No VMs found with IDs longer than 6 digits to delete."
+    exit 1
 fi
+
+# Display the count and ask for user confirmation
+echo "Found $VM_TO_DELETE_COUNT VMs with IDs longer than 6 digits to delete."
+
+while true; do
+    read -p "Do you want to proceed with the deletion? (yes/no): " confirmation
+    case $confirmation in
+        [Yy][Ee][Ss])
+            break
+            ;;
+        [Nn][Oo])
+            echo "Deletion process cancelled by user."
+            exit 0
+            ;;
+        *)
+            echo "Please answer yes or no."
+            ;;
+    esac
+done
 
 # Initialize counters
 VM_DELETED_COUNT=0
@@ -33,8 +47,8 @@ VM_FAILED_COUNT=0
 
 {
     echo "ProxMox bulk VM deletion process started."
-
-    # Re-fetch the VM_IDS to proceed with the confirmation
+    
+    # Reset the VM_IDS in case count_vms has altered it
     VM_IDS=$(qm list | awk '{if(NR>1)print $1}')
 
     # Loop through each VM ID and check if it's greater than 6 digits
@@ -46,7 +60,6 @@ VM_FAILED_COUNT=0
             # Wait a moment to ensure the VM is stopped
             sleep 5
 
-            # Destroy the VM
             echo "Destroying VM with ID: $VM_ID ..."
             if qm destroy $VM_ID; then
                 echo "VM with ID: $VM_ID has been successfully deleted."
